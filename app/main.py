@@ -1,8 +1,13 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI
 
 from app.api.routes import documents
 from app.core.qdrant import qdrant_client
-
+from app.api.routes import search
+from app.api.routes import query
 
 app = FastAPI(
     title="DocuWise API",
@@ -12,6 +17,14 @@ app = FastAPI(
 
 app.include_router(
     documents.router
+)
+
+app.include_router(
+    search.router
+)
+
+app.include_router(
+    query.router
 )
 
 
