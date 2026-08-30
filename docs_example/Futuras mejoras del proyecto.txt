@@ -1,0 +1,24 @@
+Reranking
+Guardrails
+Prompt injection detection
+HyDE
+Query rewriting
+Metadata filtering
+Evaluación automática
+Observabilidad
+Caching
+Streaming
+Autenticación
+Autorización
+Multi-tenant
+
+-------------------------------------------------------------------------------------------
+
+Futuras mejoras:
+
+- Guardrails contra prompt injection.
+- Validación adicional de preguntas.
+- Mejor sistema de detección de contexto insuficiente.
+- Reranking de resultados.
+- Evaluación automática del RAG.
+- Ajuste del threshold mediante dataset de evaluación.
