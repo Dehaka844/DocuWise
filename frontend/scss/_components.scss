@@ -1,0 +1,122 @@
+@use "variables" as *;
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: $color-primary;
+}
+
+.button {
+    border: none;
+    border-radius: $border-radius-md;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    transition: background $transition-fast;
+}
+
+.button-primary {
+    background: $color-primary;
+    color: white;
+
+    &:hover {
+        background: $color-primary-dark;
+    }
+}
+
+.button-secondary {
+    background: $color-background;
+    color: $color-text;
+    border: 1px solid $color-border;
+}
+
+.card {
+    background: $color-surface;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
+}
+
+.notification-container {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 1000;
+
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    width: min(
+        calc(100vw - 3rem),
+        380px
+    );
+
+    pointer-events: none;
+}
+
+.notification {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+
+    padding: 1rem 1.25rem;
+
+    border: 1px solid;
+    border-radius: 0.75rem;
+
+    background: var(--color-background);
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.12);
+
+    opacity: 0;
+    transform: translateX(20px);
+
+    transition:
+        opacity 0.3s ease,
+        transform 0.3s ease;
+
+    pointer-events: auto;
+}
+
+.notification.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notification-message {
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.notification-close {
+    flex-shrink: 0;
+
+    width: 1.5rem;
+    height: 1.5rem;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    background: transparent;
+
+    font-size: 1.25rem;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+.notification-success {
+    border-color: #86efac;
+}
+
+.notification-error {
+    border-color: #fca5a5;
+}
+
+.notification-info {
+    border-color: #93c5fd;
+}

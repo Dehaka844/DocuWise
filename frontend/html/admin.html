@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración | DocuWise</title>
+    <link rel="stylesheet" href="../css/main.css">
+</head>
+<body class="admin-page">
+    <header class="admin-topbar">
+        <a class="logo admin-logo" href="chat.html">DocuWise</a>
+        <div class="admin-topbar-actions">
+            <span class="admin-user-label" id="admin-user-label"></span>
+            <a class="button button-secondary" href="chat.html">Volver al chat</a>
+            <button class="button admin-logout-button" id="admin-logout-button" type="button">
+                Cerrar sesión
+            </button>
+        </div>
+    </header>
+
+    <main class="admin-main">
+        <section class="admin-heading">
+            <div>
+                <p class="admin-eyebrow">ESPACIO DE TRABAJO</p>
+                <h1>Administración</h1>
+                <p class="admin-intro">Gestiona las cuentas y los documentos disponibles en DocuWise.</p>
+            </div>
+            <span class="admin-role-badge">Administrador</span>
+        </section>
+
+        <nav class="admin-tabs" aria-label="Secciones de administración">
+            <button class="admin-tab active" id="users-tab" type="button" aria-selected="true">
+                Usuarios
+            </button>
+            <button class="admin-tab" id="documents-tab" type="button" aria-selected="false">
+                Documentos
+            </button>
+        </nav>
+
+        <section class="admin-panel" id="users-panel" aria-labelledby="users-tab">
+            <div class="admin-panel-heading">
+                <div>
+                    <h2>Usuarios</h2>
+                    <p>Administra el acceso y los roles de las cuentas.</p>
+                </div>
+                <button class="button button-primary" id="show-create-user-button" type="button">
+                    + Crear usuario
+                </button>
+            </div>
+
+            <div class="admin-stats" aria-label="Resumen de usuarios">
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Total de usuarios</span>
+                    <strong id="total-users-stat">—</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Cuentas activas</span>
+                    <strong id="active-users-stat">—</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span class="admin-stat-label">Administradores activos</span>
+                    <strong id="active-admins-stat">—</strong>
+                </article>
+            </div>
+
+            <form class="admin-create-form card" id="create-user-form" hidden>
+                <div class="admin-form-heading">
+                    <div>
+                        <h3>Crear usuario</h3>
+                        <p>La cuenta se creará activa con el rol de usuario.</p>
+                    </div>
+                    <button class="admin-icon-button" id="hide-create-user-button" type="button" aria-label="Cerrar formulario">×</button>
+                </div>
+                <div class="admin-form-grid">
+                    <label class="form-group">
+                        <span class="form-label">Nombre</span>
+                        <input class="form-input" name="name" minlength="2" maxlength="100" autocomplete="name" required>
+                    </label>
+                    <label class="form-group">
+                        <span class="form-label">Correo electrónico</span>
+                        <input class="form-input" name="email" type="email" maxlength="255" autocomplete="email" required>
+                    </label>
+                    <label class="form-group admin-password-field">
+                        <span class="form-label">Contraseña inicial</span>
+                        <input class="form-input" name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                        <span class="admin-field-hint">Mínimo 8 caracteres.</span>
+                    </label>
+                    <fieldset class="admin-department-field">
+                        <legend class="form-label">Departamentos</legend>
+                        <div class="admin-department-options" id="create-user-departments">
+                            <label><input type="checkbox" name="departments" value="rrhh"> Recursos humanos</label>
+                            <label><input type="checkbox" name="departments" value="tecnico"> Técnico</label>
+                            <label><input type="checkbox" name="departments" value="marketing"> Marketing</label>
+                        </div>
+                        <span class="admin-field-hint">Sin departamentos, solo podrá consultar documentos generales.</span>
+                    </fieldset>
+                </div>
+                <div class="admin-form-actions">
+                    <button class="button button-secondary" id="cancel-create-user-button" type="button">Cancelar</button>
+                    <button class="button button-primary" id="create-user-submit" type="submit">Crear cuenta</button>
+                </div>
+            </form>
+
+            <div class="admin-table-wrap card">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Usuario</th>
+                            <th scope="col">Rol</th>
+                            <th scope="col">Departamentos</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Creado</th>
+                            <th scope="col"><span class="visually-hidden">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <tr><td class="admin-table-message" colspan="6">Cargando usuarios…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-panel" id="documents-panel" aria-labelledby="documents-tab" hidden>
+            <div class="admin-panel-heading">
+                <div>
+                    <h2>Documentos</h2>
+                    <p>Incorpora archivos al índice de conocimiento o elimina uno existente.</p>
+                </div>
+            </div>
+
+            <div class="admin-document-grid">
+                <form class="admin-document-card card" id="upload-document-form">
+                    <div class="admin-card-icon" aria-hidden="true">↑</div>
+                    <h3>Subir documento</h3>
+                    <p>Formatos admitidos: PDF, DOCX y Markdown.</p>
+                    <label class="form-group">
+                        <span class="form-label">Selecciona un archivo</span>
+                        <input class="form-input admin-file-input" id="document-file" name="file" type="file" accept=".pdf,.docx,.md" required>
+                    </label>
+                    <label class="form-group">
+                        <span class="form-label">Quién puede consultarlo</span>
+                        <select class="form-input" id="document-visibility" name="visibility">
+                            <option value="all">Todos los usuarios (documento general)</option>
+                            <option value="departments">Departamentos seleccionados</option>
+                            <option value="personal">Propietario y departamentos seleccionados</option>
+                        </select>
+                    </label>
+                    <fieldset class="admin-department-field admin-document-options" id="document-departments-group" hidden>
+                        <legend class="form-label">Departamentos autorizados</legend>
+                        <div class="admin-department-options">
+                            <label><input type="checkbox" name="allowed_departments" value="rrhh"> Recursos humanos</label>
+                            <label><input type="checkbox" name="allowed_departments" value="tecnico"> Técnico</label>
+                            <label><input type="checkbox" name="allowed_departments" value="marketing"> Marketing</label>
+                        </div>
+                    </fieldset>
+                    <label class="form-group" id="document-owner-group" hidden>
+                        <span class="form-label">Usuario propietario</span>
+                        <select class="form-input" id="document-owner" name="owner_user_id">
+                            <option value="">Selecciona un usuario</option>
+                        </select>
+                    </label>
+                    <button class="button button-primary" id="upload-document-submit" type="submit">Subir e indexar</button>
+                    <p class="admin-document-result" id="upload-document-result" aria-live="polite"></p>
+                </form>
+
+                <form class="admin-document-card card admin-delete-document-card" id="delete-document-form">
+                    <div class="admin-card-icon admin-card-icon-danger" aria-hidden="true">−</div>
+                    <h3>Eliminar documento</h3>
+                    <p>Escribe el nombre exacto del archivo, incluida su extensión. Se eliminarán todos sus fragmentos de Qdrant.</p>
+                    <label class="form-group">
+                        <span class="form-label">Nombre completo del archivo</span>
+                        <input class="form-input" id="delete-document-filename" name="filename" placeholder="Política interna.pdf" maxlength="255" required>
+                    </label>
+                    <button class="button button-danger" id="delete-document-submit" type="submit">Eliminar documento</button>
+                </form>
+            </div>
+
+            <aside class="admin-info-note">
+                <strong>Nota:</strong> el sistema aún no tiene una ruta para listar los documentos indexados. Para eliminar uno, introduce el nombre tal como se guardó al subirlo.
+            </aside>
+        </section>
+    </main>
+
+    <div class="admin-confirm-modal" id="admin-confirm-modal" hidden>
+        <button class="admin-confirm-backdrop" id="admin-confirm-backdrop" type="button" aria-label="Cerrar confirmación"></button>
+        <section class="admin-confirm-card" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title">
+            <div class="admin-confirm-icon" id="admin-confirm-icon" aria-hidden="true">!</div>
+            <h2 id="admin-confirm-title">Confirmar acción</h2>
+            <p id="admin-confirm-message"></p>
+            <div class="admin-confirm-actions">
+                <button class="button button-secondary" id="admin-confirm-cancel" type="button">Cancelar</button>
+                <button class="button button-danger" id="admin-confirm-accept" type="button">Continuar</button>
+            </div>
+        </section>
+    </div>
+
+    <script type="module" src="../js/admin.js"></script>
+</body>
+</html>

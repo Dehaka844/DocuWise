@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": "ts",
+    "outDir": "js",
+    "sourceMap": true
+  },
+  "include": [
+    "ts/**/*.ts"
+  ]
+}

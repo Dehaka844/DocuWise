@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>DocuWise</title>
+
+    <link
+        rel="stylesheet"
+        href="../css/main.css"
+    >
+
+</head>
+
+<body>
+
+    <div class="app chat-layout">
+
+        <aside class="chat-sidebar">
+
+            <div class="chat-sidebar-header">
+
+                <div class="logo">
+                    DocuWise
+                </div>
+
+                <div class="chat-sidebar-actions">
+
+                    <button
+                        class="button button-primary"
+                        id="new-chat-button"
+                        type="button"
+                    >
+                        + Nuevo chat
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="chat-history">
+
+                <div class="chat-history-title">
+                    Historial
+                </div>
+
+            </div>
+
+        </aside>
+
+        <div
+            class="chat-sidebar-overlay"
+            id="chat-sidebar-overlay"
+        ></div>
+
+        <main class="chat-main">
+
+            <header class="chat-header">
+
+                <button
+                    class="chat-menu-button"
+                    id="chat-menu-button"
+                    type="button"
+                    aria-label="Abrir historial"
+                    aria-expanded="false"
+                >
+                    ☰
+                </button>
+
+                <strong>
+                    Nueva conversación
+                </strong>
+
+                <div class="chat-user-menu">
+
+                    <button
+                        class="chat-user-button"
+                        id="chat-user-button"
+                        type="button"
+                        aria-expanded="false"
+                    >
+                        <span class="chat-user">
+                            Usuario
+                        </span>
+
+                        <span
+                            class="chat-user-arrow"
+                            aria-hidden="true"
+                        >
+                            ▾
+                        </span>
+                    </button>
+
+                    <div
+                        class="chat-user-dropdown"
+                        id="chat-user-dropdown"
+                        hidden
+                    >
+
+                        <div class="chat-user-info">
+
+                            <strong
+                                class="chat-user-name"
+                            >
+                                Usuario
+                            </strong>
+
+                            <span
+                                class="chat-user-email"
+                            >
+                            </span>
+
+                            <a
+                                class="chat-admin-link"
+                                id="chat-admin-link"
+                                href="admin.html"
+                                hidden
+                            >
+                                Administrar
+                            </a>
+
+                        </div>
+
+                        <div class="chat-user-divider"></div>
+
+                        <button
+                            class="chat-logout-button"
+                            id="logout-button"
+                            type="button"
+                        >
+                            Cerrar sesión
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </header>
+
+            <section
+                class="chat-messages"
+                id="chat-messages"
+            >
+
+                <div class="chat-welcome">
+
+                    <h1>
+                        ¿En qué puedo ayudarte?
+                    </h1>
+
+                    <p>
+                        Pregunta sobre cualquiera de los
+                        documentos disponibles en DocuWise.
+                    </p>
+
+                </div>
+
+            </section>
+
+            <form
+                class="chat-input-container"
+                id="chat-form"
+            >
+
+                <div class="chat-input-wrapper">
+
+                    <textarea
+                        class="chat-input"
+                        id="chat-input"
+                        rows="2"
+                        placeholder="Escribe tu pregunta..."
+                        required
+                    ></textarea>
+
+                    <button
+                        class="button button-primary chat-send"
+                        type="submit"
+                    >
+                        Enviar
+                    </button>
+
+                </div>
+
+            </form>
+
+        </main>
+
+    </div>
+
+    <div
+        class="chat-confirm-modal"
+        id="delete-conversation-modal"
+        hidden
+    >
+        <div
+            class="chat-confirm-modal-overlay"
+            id="delete-conversation-modal-overlay"
+        ></div>
+
+        <div
+            class="chat-confirm-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-conversation-modal-title"
+        >
+
+            <div class="chat-confirm-modal-icon">
+                !
+            </div>
+
+            <h2
+                class="chat-confirm-modal-title"
+                id="delete-conversation-modal-title"
+            >
+                Eliminar conversación
+            </h2>
+
+            <p
+                class="chat-confirm-modal-message"
+                id="delete-conversation-modal-message"
+            >
+                ¿Quieres eliminar esta conversación?
+            </p>
+
+            <div class="chat-confirm-modal-actions">
+
+                <button
+                    class="button chat-confirm-modal-cancel"
+                    id="delete-conversation-modal-cancel"
+                    type="button"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    class="button button-primary chat-confirm-modal-confirm"
+                    id="delete-conversation-modal-confirm"
+                    type="button"
+                >
+                    Eliminar
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script
+        type="module"
+        src="../js/main.js"
+    ></script>
+
+</body>
+
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "docuwise-frontend",
+  "version": "1.0.0",
+  "description": "Frontend de DocuWise",
+  "private": true,
+  "scripts": {
+    "build:scss": "sass scss/main.scss css/main.css",
+    "build:ts": "tsc",
+    "build": "npm run build:scss && npm run build:ts",
+    "watch:scss": "sass --watch scss/main.scss:css/main.css",
+    "watch:ts": "tsc --watch"
+  },
+  "devDependencies": {
+    "sass": "^1.0.0",
+    "typescript": "^5.0.0"
+  }
+}
