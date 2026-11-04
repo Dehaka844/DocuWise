@@ -17,6 +17,9 @@ class RetrievalService:
         self,
         query: str,
         limit: int = 5,
+        user_id: int | None = None,
+        departments: list[str] | None = None,
+        is_admin: bool = False,
     ) -> list[SearchResult]:
 
         query_embedding = (
@@ -28,6 +31,9 @@ class RetrievalService:
         results = self.qdrant_service.search(
             query_vector=query_embedding,
             limit=limit,
+            user_id=user_id,
+            departments=departments,
+            is_admin=is_admin,
         )
 
         return results

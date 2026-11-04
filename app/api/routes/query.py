@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.query_request import QueryRequest
 from app.models.rag_response import RAGResponse
@@ -9,9 +9,9 @@ from app.services.retrieval_service import RetrievalService
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService
 
-from fastapi import APIRouter, HTTPException, status
-
 from app.exceptions.llm_exception import LLMServiceError
+from app.database_models.user import User
+from app.database_services.auth_dependency import get_current_user
 
 
 router = APIRouter(
@@ -43,6 +43,7 @@ rag_service = RAGService(
 )
 def query_documents(
     request: QueryRequest,
+    current_user: User = Depends(get_current_user),
 ):
 
     try:
@@ -50,6 +51,9 @@ def query_documents(
         response = rag_service.answer_question(
             query=request.query,
             limit=request.limit,
+            user_id=current_user.id,
+            departments=[department.code for department in current_user.departments],
+            is_admin=current_user.role == "admin",
         )
 
         return response

@@ -27,12 +27,19 @@ class DocumentService:
     async def process_and_chunk_document(
         self,
         file: UploadFile,
+        extra_metadata: dict | None = None,
     ) -> list[DocumentChunk]:
 
         document = await self.process_document(
             file
         )
 
-        return self.chunker.chunk_document(
+        chunks = self.chunker.chunk_document(
             document
         )
+
+        if extra_metadata:
+            for chunk in chunks:
+                chunk.metadata.update(extra_metadata)
+
+        return chunks

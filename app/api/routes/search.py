@@ -1,4 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from app.database_models.user import User
+from app.database_services.auth_dependency import get_current_user
 
 from app.models.search_request import SearchRequest
 from app.models.search_response import SearchResponse
@@ -30,11 +33,15 @@ retrieval_service = RetrievalService(
 )
 def search_documents(
     request: SearchRequest,
+    current_user: User = Depends(get_current_user),
 ):
 
     results = retrieval_service.retrieve(
         query=request.query,
         limit=request.limit,
+        user_id=current_user.id,
+        departments=[department.code for department in current_user.departments],
+        is_admin=current_user.role == "admin",
     )
 
     return SearchResponse(

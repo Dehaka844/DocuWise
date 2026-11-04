@@ -26,12 +26,24 @@ class RAGService:
         self,
         query: str,
         limit: int = 5,
+        conversation_history: list | None = None,
+        user_id: int | None = None,
+        departments: list[str] | None = None,
+        is_admin: bool = False,
     ) -> RAGResponse:
+
+        if conversation_history is None:
+
+            conversation_history = []
 
         result = self.graph.invoke(
             {
                 "query": query,
                 "limit": limit,
+                "conversation_history": conversation_history,
+                "user_id": user_id,
+                "departments": departments or [],
+                "is_admin": is_admin,
             }
         )
 

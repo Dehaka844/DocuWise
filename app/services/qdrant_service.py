@@ -3,6 +3,11 @@ from uuid import uuid4
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
+    FieldCondition,
+    Filter,
+    FilterSelector,
+    MatchValue,
+    MatchAny,
     PointStruct,
     VectorParams,
 )
@@ -87,13 +92,44 @@ class QdrantService:
         self,
         query_vector: list[float],
         limit: int = 5,
+        user_id: int | None = None,
+        departments: list[str] | None = None,
+        is_admin: bool = False,
     ) -> list[SearchResult]:
+
+        access_filter = None
+        if not is_admin:
+            visible_conditions = [
+                FieldCondition(
+                    key="visibility",
+                    match=MatchValue(value="all"),
+                ),
+            ]
+
+            if departments:
+                visible_conditions.append(
+                    FieldCondition(
+                        key="allowed_departments",
+                        match=MatchAny(any=departments),
+                    )
+                )
+
+            if user_id is not None:
+                visible_conditions.append(
+                    FieldCondition(
+                        key="allowed_user_ids",
+                        match=MatchValue(value=user_id),
+                    )
+                )
+
+            access_filter = Filter(should=visible_conditions)
 
         results = self.client.query_points(
             collection_name=self.COLLECTION_NAME,
             query=query_vector,
             limit=limit,
             with_payload=True,
+            query_filter=access_filter,
         ).points
 
         search_results = []
@@ -122,4 +158,31 @@ class QdrantService:
             search_results.append(search_result)
 
         return search_results
+
+    def delete_document(
+        self,
+        filename: str,
+    ) -> None:
+
+        if not self.client.collection_exists(
+            self.COLLECTION_NAME
+        ):
+            return
+
+        filename_filter = Filter(
+            must=[
+                FieldCondition(
+                    key="filename",
+                    match=MatchValue(value=filename),
+                )
+            ]
+        )
+
+        self.client.delete(
+            collection_name=self.COLLECTION_NAME,
+            points_selector=FilterSelector(
+                filter=filename_filter,
+            ),
+            wait=True,
+        )
 

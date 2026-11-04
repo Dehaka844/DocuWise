@@ -5,7 +5,7 @@ class RAGSource(BaseModel):
 
     filename: str
 
-    page_number: int
+    page_number: int | None = None
 
 
 class RAGResponse(BaseModel):

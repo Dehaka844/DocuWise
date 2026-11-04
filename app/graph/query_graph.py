@@ -1,21 +1,36 @@
+import logging
 from typing import TypedDict
 
 from langgraph.graph import StateGraph, START, END
 
 from app.services.retrieval_service import RetrievalService
 from app.services.llm_service import LLMService
+from app.exceptions.llm_exception import LLMServiceError
 
 from app.prompts.rag_prompt import (
-    RAG_SYSTEM_PROMPT,
     RAG_USER_PROMPT,
+    build_rag_system_prompt,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class QueryState(TypedDict):
 
     query: str
 
+    search_query: str
+
     limit: int
+
+    conversation_history: list
+
+    user_id: int
+
+    departments: list[str]
+
+    is_admin: bool
 
     results: list
 
@@ -47,18 +62,53 @@ class QueryGraph:
     ) -> dict:
 
         results = self.retrieval_service.retrieve(
-            query=state["query"],
+            query=state.get("search_query", state["query"]),
             limit=state["limit"],
+            user_id=state.get("user_id"),
+            departments=state.get("departments", []),
+            is_admin=state.get("is_admin", False),
         )
 
         return {
             "results": results,
         }
 
+    def rewrite_query(
+        self,
+        state: QueryState,
+    ) -> dict:
+        query = state["query"]
+        conversation_history = state.get(
+            "conversation_history",
+            [],
+        )
+
+        if not conversation_history:
+            return {"search_query": query}
+
+        try:
+            search_query = self.llm_service.rewrite_query(
+                query=query,
+                conversation_history=conversation_history,
+            )
+        except LLMServiceError:
+            logger.warning(
+                "No se pudo reformular la consulta; se usará la pregunta original.",
+                exc_info=True,
+            )
+            search_query = query
+
+        return {"search_query": search_query}
+
 
     def build(self):
 
         graph = StateGraph(QueryState)
+
+        graph.add_node(
+            "rewrite_query",
+            self.rewrite_query,
+        )
 
         graph.add_node(
             "retrieve",
@@ -82,6 +132,11 @@ class QueryGraph:
 
         graph.add_edge(
             START,
+            "rewrite_query",
+        )
+
+        graph.add_edge(
+            "rewrite_query",
             "retrieve",
         )
 
@@ -116,21 +171,20 @@ class QueryGraph:
         state: QueryState,
     ) -> dict:
 
-        results = state["results"]
-
-        if not results:
-
-            return {
-                "has_sufficient_context": False,
-            }
-
-        best_score = results[0].score
+        relevant_results = self._relevant_results(
+            state["results"]
+        )
 
         return {
-            "has_sufficient_context": (
-                best_score >= self.score_threshold
-            ),
+            "has_sufficient_context": bool(relevant_results),
         }
+
+    def _relevant_results(self, results: list) -> list:
+        return [
+            result
+            for result in results
+            if result.score >= self.score_threshold
+        ]
     
     def route_context(
         self,
@@ -162,18 +216,45 @@ class QueryGraph:
         state: QueryState,
     ) -> dict:
 
+        relevant_results = self._relevant_results(
+            state["results"]
+        )
+
         context = "\n\n".join(
             result.content
-            for result in state["results"]
+            for result in relevant_results
+        )
+
+        relevant_domains = set()
+        for result in relevant_results:
+            result_domains = result.metadata.get("domains", [])
+            if isinstance(result_domains, str):
+                result_domains = [result_domains]
+
+            if isinstance(result_domains, list):
+                relevant_domains.update(
+                    domain
+                    for domain in result_domains
+                    if isinstance(domain, str)
+                )
+
+        system_prompt = build_rag_system_prompt(
+            sorted(relevant_domains)
+        )
+
+        conversation_history = "\n".join(
+            f"{message.role}: {message.content}"
+            for message in state.get("conversation_history", [])
         )
 
         user_prompt = RAG_USER_PROMPT.format(
+            conversation_history=conversation_history,
             context=context,
             query=state["query"],
         )
 
         answer = self.llm_service.generate(
-            system_prompt=RAG_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
 
@@ -181,11 +262,15 @@ class QueryGraph:
 
         seen_sources = set()
 
-        for result in state["results"]:
+        for result in relevant_results:
 
             filename = result.metadata["filename"]
 
-            page_number = result.metadata["page_number"]
+            page_number = (
+                result.metadata.get("page_number")
+                if result.metadata.get("source_type") == "pdf"
+                else None
+            )
 
             source_key = (
                 filename,
