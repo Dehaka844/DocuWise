@@ -1,631 +1,91 @@
-# Ingestión de documentos
+# Ingesta de documentos
 
-## Visión general
-
-El proceso de ingestión es responsable de transformar un documento proporcionado por el usuario en información que pueda ser utilizada posteriormente por el sistema RAG.
-
-El objetivo final del proceso es almacenar fragmentos semánticamente representativos del documento dentro de la base de datos vectorial Qdrant.
-
-El pipeline completo de ingestión es el siguiente:
+## Flujo
 
 ```text
-UploadFile
-    ↓
-Validación del formato
-    ↓
-Parser correspondiente
-    ↓
-ParsedDocument
-    ↓
-Chunking
-    ↓
-DocumentChunk
-    ↓
-Generación de embeddings
-    ↓
-Almacenamiento en Qdrant
+Subida autorizada de admin
+  → selección del parser por extensión
+  → extracción de texto y metadata
+  → chunks de 1.000 caracteres con solapamiento de 200
+  → embeddings normalizados de 384 dimensiones
+  → puntos en Qdrant
 ```
 
-Cada una de estas etapas tiene una responsabilidad independiente.
+Los formatos admitidos son PDF, DOCX y Markdown (`.md`). Los demás reciben un error de formato no soportado.
 
----
+## Parsers y fuentes
 
-# Entrada del documento
+- **PDF:** PyMuPDF extrae texto página a página. Las fuentes pueden señalar número de página.
+- **DOCX:** `python-docx` recorre párrafos y tablas en su orden dentro del documento. Las tablas se convierten en texto que asocia los valores con las celdas de la primera fila, tratada como encabezado. `python-docx` no proporciona paginación renderizada; la fuente se muestra por nombre de documento, sin página.
+- **Markdown:** el texto se procesa como un documento lógico; la fuente se muestra por nombre de archivo, sin página física.
 
-Los documentos se reciben a través de FastAPI utilizando el tipo:
+El chunker divide cada página PDF por separado. DOCX y Markdown se representan como una unidad textual y pueden producir varios chunks. El `page_number=1` interno de esos parsers no representa una página física y no se muestra como tal.
 
-```python
-UploadFile
-```
+## Metadata y permisos
 
-Este tipo permite trabajar con archivos subidos mediante peticiones HTTP sin necesidad de cargar manualmente el archivo completo desde una ruta local.
+Cada chunk hereda metadata documental y añade `page_number` y `chunk_index`. La API de subida agrega:
 
-El sistema valida el formato del archivo antes de continuar con su procesamiento.
+| Campo | Uso |
+|---|---|
+| `filename`, `source_type`, `page_count` | Procedencia del documento |
+| `document_id`, `chunk_index` | Identificación lógica y posición del chunk |
+| `domains` | `general`, `rrhh`, `tecnico`, `marketing`, `datos_personales` |
+| `visibility` | `all`, `departments` o `personal` |
+| `allowed_departments` | Departamentos autorizados |
+| `allowed_user_ids` | Propietario autorizado para documentos personales |
 
-Actualmente, DocuWise acepta los siguientes formatos:
+Los ámbitos se derivan de la visibilidad y los departamentos seleccionados. No se permite que un usuario normal suba documentos.
 
-* `.pdf`
-* `.docx`
-* `.md`
+## Actualizar un documento indexado
 
-Los formatos no soportados son rechazados por el sistema.
+Subir de nuevo un archivo con el mismo nombre agrega nuevos puntos; no reemplaza automáticamente los anteriores. Para reindexar, elimina primero el archivo anterior como administrador y vuelve a subirlo. El endpoint de borrado elimina todos los puntos cuyo `filename` coincida exactamente, así que conviene mantener nombres únicos.
 
-Por ejemplo, un archivo `.txt` no se procesa actualmente, aunque podría añadirse soporte en el futuro mediante la implementación de un parser adicional.
+## Ejemplo de payload
 
----
+Un punto indexado tiene un vector y un payload similar a este:
 
-# Parser de documentos
-
-Después de validar el formato, el documento se procesa utilizando el parser correspondiente.
-
-Los parsers se encuentran dentro del módulo:
-
-```text
-app/ingestion/parsers/
-```
-
-La responsabilidad de un parser es extraer el contenido del documento y convertirlo a una estructura común.
-
-Esto permite que las siguientes etapas del pipeline no dependan del formato original del archivo.
-
-Por ejemplo, un documento PDF y un documento DOCX pueden tener mecanismos internos de extracción completamente diferentes, pero ambos deben producir una representación común del contenido.
-
----
-
-# Procesamiento asíncrono
-
-Los parsers de DocuWise pueden utilizar procesamiento asíncrono.
-
-Por este motivo, el procesamiento de documentos se realiza utilizando `await`.
-
-Un flujo simplificado sería:
-
-```python
-document = await parser.parse(file)
-```
-
-Esto permite que el endpoint de subida trabaje correctamente con operaciones de procesamiento que requieren un flujo asíncrono.
-
----
-
-# ParsedDocument
-
-Independientemente del formato original del archivo, el resultado del proceso de parsing se representa mediante `ParsedDocument`.
-
-La estructura principal es:
-
-```python
-class PageContent(BaseModel):
-
-    page_number: int
-
-    content: str
-
-
-class ParsedDocument(BaseModel):
-
-    pages: list[PageContent]
-
-    metadata: dict[str, Any]
-```
-
-`ParsedDocument` contiene dos elementos principales:
-
-* `pages`
-* `metadata`
-
----
-
-# PageContent
-
-Cada elemento de `pages` representa una unidad de contenido del documento.
-
-Su estructura es:
-
-```python
-class PageContent(BaseModel):
-
-    page_number: int
-
-    content: str
-```
-
-Cada objeto contiene:
-
-* `page_number`: número de página o identificador de la sección.
-* `content`: contenido textual extraído.
-
-El uso de una estructura común permite mantener información sobre el origen del contenido durante las siguientes etapas del pipeline.
-
----
-
-# Metadata del documento
-
-Además del contenido, el documento puede contener metadata asociada.
-
-La metadata se representa mediante:
-
-```python
-metadata: dict[str, Any]
-```
-
-Esto permite almacenar información adicional sin limitar la estructura a un conjunto fijo de campos.
-
-Actualmente, la metadata puede incluir información como:
-
-* Nombre del archivo.
-* Tipo de documento.
-* Número total de páginas.
-
-La metadata del documento se propaga posteriormente a los chunks generados.
-
-Esto permite conservar la trazabilidad del contenido original.
-
----
-
-# Chunking
-
-Una vez que el documento ha sido procesado, su contenido se divide en fragmentos más pequeños.
-
-Esta responsabilidad corresponde a:
-
-```text
-RecursiveChunker
-```
-
-El objetivo del chunking es evitar almacenar documentos completos como una única unidad.
-
-En su lugar, el contenido se divide en fragmentos que pueden representar unidades semánticas más pequeñas.
-
-El flujo es:
-
-```text
-ParsedDocument
-    ↓
-RecursiveChunker
-    ↓
-DocumentChunk
-```
-
-Cada página puede generar uno o varios chunks.
-
----
-
-# DocumentChunk
-
-Los fragmentos generados se representan mediante:
-
-```python
-class DocumentChunk(BaseModel):
-
-    content: str
-
-    metadata: dict[str, Any]
-```
-
-Cada `DocumentChunk` contiene:
-
-* `content`: texto del fragmento.
-* `metadata`: información sobre el origen del fragmento.
-
-Un chunk se crea utilizando una estructura similar a:
-
-```python
-DocumentChunk(
-    content=content,
-    metadata={
-        **document.metadata,
-        "page_number": page.page_number,
-        "chunk_index": chunk_index,
-    },
-)
-```
-
-La expresión:
-
-```python
-**document.metadata
-```
-
-permite conservar toda la metadata original del documento.
-
-Después se añade información específica del chunk:
-
-```text
-page_number
-chunk_index
-```
-
-De esta forma, cada fragmento mantiene información sobre:
-
-* El documento original.
-* El número de página.
-* La posición del chunk dentro del proceso de división.
-
----
-
-# Importancia del tamaño de los chunks
-
-El tamaño de los chunks es una decisión importante dentro de un sistema RAG.
-
-Si los chunks son demasiado grandes:
-
-* Pueden contener información no relacionada.
-* La recuperación puede ser menos precisa.
-* Se puede enviar demasiado contexto al modelo de lenguaje.
-
-Si son demasiado pequeños:
-
-* Puede perderse información necesaria para comprender el contenido.
-* La información relevante puede quedar dividida entre múltiples chunks.
-
-El objetivo es encontrar un equilibrio entre:
-
-```text
-Contexto suficiente
-+
-Unidad semántica
-+
-Precisión en recuperación
-```
-
-El `RecursiveChunker` permite dividir progresivamente el contenido utilizando separadores, intentando mantener fragmentos con sentido semántico.
-
----
-
-# Generación de embeddings
-
-Después de generar los chunks, su contenido se convierte en embeddings.
-
-Esta responsabilidad corresponde a:
-
-```text
-EmbeddingService
-```
-
-El servicio proporciona dos métodos principales:
-
-```python
-embed_text()
-```
-
-y:
-
-```python
-embed_texts()
-```
-
-El primer método genera el embedding de un único texto.
-
-El segundo permite procesar múltiples textos.
-
-Para la ingestión de documentos se utiliza el procesamiento de múltiples textos.
-
-El flujo es:
-
-```text
-DocumentChunks
-    ↓
-Extracción del contenido
-    ↓
-Lista de textos
-    ↓
-embed_texts()
-    ↓
-Embeddings
-```
-
-Por ejemplo:
-
-```python
-texts = [
-    chunk.content
-    for chunk in chunks
-]
-
-embeddings = embedding_service.embed_texts(texts)
-```
-
----
-
-# Dimensiones de los embeddings
-
-Los embeddings generados por el modelo utilizado actualmente tienen:
-
-```text
-384 dimensiones
-```
-
-Cada fragmento de texto se representa mediante un vector de números de esta longitud.
-
-Por ejemplo:
-
-```text
-[
-    0.1718,
-    -0.0603,
-    0.0675,
-    ...
-]
-```
-
-El embedding no representa palabras individuales de forma directa.
-
-Representa el significado semántico del contenido mediante una posición dentro de un espacio vectorial.
-
-Textos con significados similares tienden a generar vectores cercanos dentro de este espacio.
-
-Esto permite realizar búsquedas semánticas.
-
----
-
-# Procesamiento por lotes
-
-`EmbeddingService` permite procesar múltiples textos mediante batches.
-
-Esto evita generar embeddings realizando una llamada individual para cada chunk.
-
-El flujo es:
-
-```text
-Chunks
-    ↓
-Lista de textos
-    ↓
-Batch 1
-Batch 2
-Batch 3
-    ↓
-Embeddings finales
-```
-
-El uso de batches permite:
-
-* Procesar múltiples chunks de manera más eficiente.
-* Reducir el número de operaciones individuales.
-* Facilitar el procesamiento de documentos grandes.
-
----
-
-# Validación de la ingestión
-
-Durante el proceso de ingestión, es importante mantener la correspondencia entre:
-
-```text
-Número de chunks
-=
-Número de embeddings
-```
-
-Cada chunk debe tener exactamente un embedding asociado.
-
-Por ejemplo:
-
-```text
-Número de chunks: 58
-Número de embeddings: 58
-Dimensiones del primer embedding: 384
-```
-
-Esta validación permite comprobar que todos los fragmentos del documento han sido correctamente vectorizados.
-
----
-
-# Almacenamiento en Qdrant
-
-Después de generar los embeddings, los chunks y sus vectores se almacenan en Qdrant.
-
-La operación de almacenamiento se realiza mediante:
-
-```text
-QdrantService
-```
-
-Cada chunk se almacena junto con:
-
-* Su embedding.
-* Su contenido.
-* La metadata necesaria para identificar su origen.
-
-Un punto almacenado en Qdrant contiene conceptualmente:
-
-```text
-ID
-+
-Vector
-+
-Payload
-```
-
-El payload contiene información asociada al chunk.
-
-Una estructura simplificada sería:
-
-```python
+```json
 {
-    "content": chunk.content,
-    "filename": filename,
-    "source_type": source_type,
-    "page_number": chunk.metadata["page_number"],
-    "chunk_index": chunk.metadata["chunk_index"],
+  "content": "Texto recuperable del fragmento...",
+  "filename": "Guia_RRHH.pdf",
+  "source_type": "pdf",
+  "page_count": 12,
+  "page_number": 4,
+  "chunk_index": 7,
+  "document_id": "<uuid-del-documento>",
+  "domains": ["rrhh"],
+  "visibility": "departments",
+  "allowed_departments": ["rrhh"],
+  "allowed_user_ids": []
 }
 ```
 
-También pueden conservarse otros datos procedentes de la metadata original, como el número total de páginas.
+La metadata administrativa se replica en todos los chunks del archivo, de modo que Qdrant puede aplicar el filtro de acceso directamente en la búsqueda. `document_id` agrupa los puntos creados en una carga; el borrado implementado actualmente usa `filename`.
 
----
+## Chunking actual
 
-# Ejemplo de información almacenada
+`RecursiveChunker` usa valores por defecto de 1.000 caracteres y 200 caracteres de solapamiento. Intenta cortar por párrafos (`\n\n`), líneas (`\n`) y espacios antes de recurrir a cortes por caracteres. El procesamiento ocurre por unidad de página entregada por el parser, de forma que un chunk PDF no cruza de una página a otra.
 
-Un chunk almacenado en Qdrant puede tener una estructura conceptual como:
+Los valores se miden en caracteres, no tokens. El solapamiento busca conservar contexto en los límites, pero no garantiza que títulos, tablas extensas o relaciones entre filas queden siempre en el mismo chunk; es una de las variables que conviene evaluar con casos concretos.
 
-```text
-ID:
-011dd28f-5bac-4710-8f2a-0d729fd75a11
+## DOCX y estructura de tablas
 
-Payload:
-{
-    "content": "...",
-    "filename": "documento.pdf",
-    "source_type": "pdf",
-    "page_count": 22,
-    "page_number": 4,
-    "chunk_index": 11
-}
+El parser usa `iter_inner_content()` para recorrer párrafos y tablas en el orden del documento. En una tabla:
 
-Vector:
-[
-    -0.011888737,
-    0.06627152,
-    -0.03852355,
-    ...
-]
-```
+1. Extrae texto de las celdas, también de párrafos y tablas anidados.
+2. Usa la primera fila como encabezados.
+3. Escribe cada fila posterior como pares `encabezado: valor`, facilitando la asociación semántica.
 
-Esta información permite posteriormente recuperar tanto el vector como el contenido y su origen.
+La paginación de DOCX depende del motor de renderizado y `python-docx` no la calcula. Por eso se devuelve la fuente sin página, aunque el parser mantenga una unidad lógica interna. Markdown también se trata como documento completo sin paginación física.
 
----
+## Embeddings y almacenamiento
 
-# IngestionService
+`EmbeddingService.embed_texts()` procesa los chunks en lotes de 32 por defecto, comprueba que no haya textos vacíos y normaliza los vectores. `QdrantService.upsert_chunks()` valida que exista un embedding por chunk, crea UUIDs nuevos y guarda contenido más metadata. La colección `document_chunks` usa distancia coseno y dimensión 384; modificar el modelo o dimensión requiere coordinar la configuración de Qdrant y reindexar el corpus.
 
-La coordinación del proceso de ingestión se realiza mediante:
+## Al volver a indexar
 
-```text
-IngestionService
-```
+Para que un cambio de parser se aplique a contenido ya cargado, hay que sustituir los puntos viejos:
 
-Este servicio conecta los principales componentes del pipeline:
-
-```text
-RecursiveChunker
-+
-EmbeddingService
-+
-QdrantService
-```
-
-La responsabilidad de este servicio es coordinar el flujo completo desde los chunks hasta su almacenamiento vectorial.
-
-La separación mediante servicios permite evitar que los endpoints contengan directamente la lógica de:
-
-* Chunking.
-* Generación de embeddings.
-* Indexación en Qdrant.
-
----
-
-# Flujo completo de ingestión
-
-El proceso completo puede resumirse de la siguiente forma:
-
-```text
-Usuario
-    ↓
-Subida de documento
-    ↓
-FastAPI
-    ↓
-Validación del formato
-    ↓
-Parser
-    ↓
-ParsedDocument
-    ↓
-Pages
-    ↓
-RecursiveChunker
-    ↓
-DocumentChunks
-    ↓
-EmbeddingService
-    ↓
-Vectores de 384 dimensiones
-    ↓
-QdrantService
-    ↓
-Collection de Qdrant
-```
-
-Una vez finalizado este proceso, el documento queda disponible para consultas semánticas.
-
----
-
-# Resultado del proceso
-
-Como resultado de la ingestión, cada documento queda representado por múltiples chunks.
-
-Cada chunk dispone de:
-
-* Contenido textual.
-* Un embedding de 384 dimensiones.
-* Metadata sobre su origen.
-
-Esto permite que el sistema pueda responder posteriormente a preguntas relacionadas con partes específicas del documento sin necesidad de enviar el documento completo al modelo de lenguaje.
-
-La información se recupera dinámicamente utilizando búsqueda semántica.
-
----
-
-# Principios del pipeline de ingestión
-
-El proceso de ingestión sigue varios principios:
-
-## Normalización
-
-Todos los formatos de documento terminan convertidos a una estructura común.
-
-```text
-PDF ────┐
-        │
-DOCX ───┼──→ ParsedDocument
-        │
-MD ─────┘
-```
-
-## Trazabilidad
-
-Cada chunk mantiene información sobre el documento del que procede.
-
-## Modularidad
-
-Los parsers, el chunking, los embeddings y el almacenamiento se mantienen como componentes independientes.
-
-## Eficiencia
-
-La generación de embeddings permite procesar múltiples textos en batches.
-
-## Consistencia
-
-Todos los vectores almacenados tienen la misma dimensionalidad:
-
-```text
-384 dimensiones
-```
-
----
-
-# Próximos pasos
-
-Una vez que el documento ha sido procesado y almacenado en Qdrant, puede utilizarse durante el proceso de consulta.
-
-La siguiente fase del sistema es la recuperación semántica.
-
-Este proceso se documenta en:
-
-```text
-docs/retrieval.md
-```
-
-El flujo será:
-
-```text
-Pregunta del usuario
-    ↓
-Embedding de la pregunta
-    ↓
-Búsqueda vectorial en Qdrant
-    ↓
-Resultados ordenados por similitud
-    ↓
-Fragmentos recuperados
-```
+1. Eliminar el archivo en el panel administrativo usando su filename exacto.
+2. Subir de nuevo el archivo con visibilidad, departamentos y propietario correctos.
+3. Comprobar el número de chunks y realizar consultas que dependan del texto recién extraído.

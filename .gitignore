@@ -5,23 +5,48 @@ venv/
 # Python cache
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+coverage.xml
+.coverage*
 
-# Environment variables
+# Node.js Modules
+node_modules/
+
+# Local build / temporary files
+/tmp/
+/temp/
+/mejoras/
+dist/
+build/
+*.log
+
+# Local databases and uploaded files
+uploads/
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local test credentials
+/Cuentas Prueba.txt
 
 # IDE
 .vscode/
 .idea/
 
-# Testing
-.pytest_cache/
-.coverage
-
 # OS
 .DS_Store
+Thumbs.db
+desktop.ini
 
-# Uploaded files
-uploads/
-
-# Logs
-*.log
+# Keep the fictional corpus and evaluation reports in version control.
+# docs_example/ and informes/ are intentionally not ignored.
