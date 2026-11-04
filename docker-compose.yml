@@ -10,5 +10,21 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
+  postgres:
+    image: postgres:17
+    container_name: docuwise-postgres
+
+    environment:
+      POSTGRES_DB: docuwise
+      POSTGRES_USER: docuwise
+      POSTGRES_PASSWORD: docuwise_password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
 volumes:
   qdrant_data:
+  postgres_data:
